@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cattle Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        video {
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Detected Cattle Video</h1>
+    
+    <video width="640" height="480" controls autoplay muted>
+        <source src="{{ url_for('static', filename=video_path) }}" type="video/mp4">
+    </video>
+
+</body>
+</html>
