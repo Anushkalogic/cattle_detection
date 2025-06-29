@@ -5,10 +5,11 @@
 </head>
 <body>
     <h2>Processed Video Output</h2>
-  <video controls width="50%">
-    <source src="{{ video_path }}" type="video/mp4">
-    Your browser does not support the video tag.
+<video width="640" height="480" controls>
+  <source src="{{ url_for('static', filename='output/output_video.mp4') }}" type="video/mp4">
+  Your browser does not support the video tag.
 </video>
+
 
 </body>
 </html>

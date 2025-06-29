@@ -1,6 +1,5 @@
 from flask import Flask, render_template
 import os, cv2, threading, subprocess
-from inference import InferencePipeline
 from database import init_db, insert_detection  # database methods
 
 app = Flask(__name__)
@@ -40,10 +39,11 @@ def run_roboflow_pipeline():
     print("📽️ VideoWriter initialized")
 
     # Start Roboflow Inference
+    from inference import InferencePipeline
     pipeline = InferencePipeline.init_with_workflow(
         api_key="IYnVxkCFFkQgBsrmcygz",
         workspace_name="cattle-wtx39",
-        workflow_id="detect-count-and-visualize-3",
+        workflow_id="detect-count-and-visualize-6",
         video_reference=INPUT_VIDEO,
         max_fps=30,
         on_prediction=my_sink
@@ -53,9 +53,7 @@ def run_roboflow_pipeline():
     pipeline.start()
     pipeline.join()
     print("✅ Pipeline finished.")
-
     out.release()
-
     # Convert video with ffmpeg if valid
     if os.path.exists(TEMP_OUTPUT):
         size = os.path.getsize(TEMP_OUTPUT)
@@ -73,6 +71,7 @@ def run_roboflow_pipeline():
         print("⚠️ TEMP_OUTPUT not found.")
 def my_sink(result, video_frame):
     global frame_count, out
+
     output_image = result.get("output_image")
 
     if not output_image:
@@ -80,14 +79,14 @@ def my_sink(result, video_frame):
         return
 
     frame = output_image.numpy_image
-    predictions = result.get("predictions", [])
 
+    # Add even if there are NO predictions
     cow = stranger = dog = 0
+    predictions = result.get("predictions", [])
 
     for pred in predictions:
         if isinstance(pred, tuple):
             pred = pred[0]
-
         if isinstance(pred, dict):
             cls = pred.get("class", "").lower()
             x1 = int(pred["x"] - pred["width"] / 2)
@@ -114,20 +113,16 @@ def my_sink(result, video_frame):
         image_path = os.path.join(IMAGE_SAVE_DIR, f"frame_{frame_count}.jpg")
         cv2.imwrite(image_path, frame)
 
+        # ✅ FORCE writing every frame to video output, even if no detection
         if out:
             out.write(frame)
         else:
-            print("❌ VideoWriter not available, frame not written.")
+            print("❌ VideoWriter not initialized")
 
-        # Insert into DB (one row per cow)
-        for _ in range(cow):
-            insert_detection(cow_count=1, image_path=image_path)
+        # Save frame data to DB even if all counts are zero
+        insert_detection(cow_count=cow, image_path=image_path)
 
-        # Also insert if zero cows (optional but helps tracking)
-        if cow == 0:
-            insert_detection(cow_count=0, image_path=image_path)
-
-        print(f"✅ Frame {frame_count} saved with cows: {cow}, strangers: {stranger}, dogs: {dog}")
+        print(f"✅ Frame {frame_count} written: cow={cow}, stranger={stranger}, dog={dog}")
 
 @app.route('/')
 def index():
@@ -140,6 +135,5 @@ def get_dashboard_data():
 
 if __name__ == '__main__':
     init_db()
-    insert_detection(3, "static/detected_images/frame_1.jpg")
-    print("✅ Test insert successful")   
+    print("✅ DB Initialized")
     app.run(debug=True)
